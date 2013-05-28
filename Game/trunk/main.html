@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<script>
+  var newGameFun = function(event){
+      window.newGameObj.innerHTML = "Loading...";
+      console.log(["New Game started"]);
+      window.location = "game.html"
+  }
+
+  var checkHighScores = function(){
+     if(typeof(Storage) && localStorage.getItem("scores")!=null){
+         window.highScoreButton.style.display = "";
+         displayScores(getScores());
+     }
+  }
+
+  var getScores = function (){
+      return JSON.parse(localStorage.getItem("scores"));
+  };
+
+  var displayScores = function (scoreList){
+      var displayElement = document.getElementById("scoresListDisplay");
+      var newHTMLString = "";
+      for(var index=0;index<scoreList.scores.length;index++){
+           newHTMLString = newHTMLString + '<tr><td>' + scoreList.scores[index][0] + '</td><td>' + scoreList.scores[index][1] + '</td><td>' + scoreList.scores[index][2] + '</td><td>' +scoreList.scores[index][3]+'</td></tr>';
+
+      }
+      displayElement.innerHTML = newHTMLString;
+
+
+  };
+
+  var toggleDisplayScore = function(){
+      if(window.scoreTable.style.visibility != "visible"){
+          window.scoreTable.style.visibility =   "visible";
+          highScoreButton.innerText = "Hide Scores";
+      }else{
+          window.scoreTable.style.visibility =   "hidden";
+          highScoreButton.innerText = "High Scores";
+      }
+  };
+
+  var quitAction = function(){
+      window.location = "http://www.extension.harvard.edu/";
+  }
+
+  window.onload = function (){
+    window.newGameObj = document.getElementById('newGame');
+    window.highScoreButton = document.getElementById('highScoreButton');
+    window.scoreTable = document.getElementById('scoreTable');
+    window.quitButton = document.getElementById('quitButton');
+    newGameObj.addEventListener('touchend',newGameFun);
+    highScoreButton.addEventListener('touchend',toggleDisplayScore);
+    quitButton.addEventListener('touchend',quitAction);
+    checkHighScores();
+  }
+</script>
+<link rel="stylesheet" type="text/css" href="assets/button.css">
+<body>
+<div class="button" id="newGame">
+ New Game
+</div>
+<div class="button" id="quitButton">
+    Quit
+</div>
+<div class="button" id="highScoreButton" style="display: none;">High Scores</div>
+    <table border="1" style="position: absolute;left: 5%;top: 25%;visibility: hidden;" id="scoreTable">
+        <thead>
+            <tr>
+            <th>Name</th>
+            <th>Score</th>
+            <th>Time</th>
+            <th>Location</th>
+            </tr>
+        </thead>
+        <tbody id="scoresListDisplay">
+            <tr>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+            </tr>
+        </tbody>
+    </table>
+
+</div>
+</body>
+</html>

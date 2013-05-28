@@ -1,0 +1,95 @@
+<!DOCTYPE html5>
+<html>
+<head>
+
+</head>
+<link rel="stylesheet" type="text/css" href="assets/button.css">
+<script>
+    /*
+    * Provided by:
+    * http://papermashup.com/read-url-get-variables-withjavascript/
+    * */
+    function getUrlVars() {
+        var vars = {};
+        var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+            vars[key] = value;
+        });
+        return vars;
+    }
+
+    function saveScore(score,time,name,geolocation){
+        window.geoLocation = geolocation;
+        if(typeof(Storage)!=="undefined")
+        {   var scoresObj = {"scores": []};
+            if(localStorage.getItem('scores')==null){
+                scoresObj.scores.push([name,score,time,geolocation]);
+            }else{
+                scoresObj = JSON.parse(localStorage.getItem('scores'));
+                scoresObj.scores.push([name,score,time,geolocation]);
+            }
+            // save list of scores
+            localStorage.setItem('scores',JSON.stringify(scoresObj));
+        }
+        else
+        {
+            alert("Sorry browser not supported");
+        }
+        //
+        websocket = new WebSocket("ws://echo.websocket.org/");
+
+        websocket.onopen = function(evt) {
+            var serverString = window.score.innerHTML + "," + window.time.innerHTML + "," + geolocation;
+            websocket.send(serverString);
+            window.location = "main.html";
+        };
+
+        websocket.onclose = function(evt){
+            window.location = "main.html";
+        }
+        websocket.onerror = function(evt) {
+            console.log("Error with WebSocket");
+            window.location = "main.html";
+        }
+    }
+
+    function getPositionAndSave(position){
+        var geoLocation = position.coords.latitude + "," + position.coords.longitude;
+        saveScore(window.score.innerHTML,window.time.innerHTML,window.nameInput.value,geoLocation);
+
+    }
+
+    function submitScore(){
+        if (navigator.geolocation)
+        {
+            navigator.geolocation.getCurrentPosition(getPositionAndSave);
+        }else{
+            saveScore(window.score.innerHTML,window.time.innerHTML,window.nameInput.value,"No Position");
+            window.location = "main.html";
+        }
+
+    }
+
+    window.onload = function (){
+       window.geoLocation = 0;
+       window.score = window.document.getElementById("score");
+       window.time =  window.document.getElementById("time");
+       window.submit = window.document.getElementById("submitButton");
+       window.nameInput = window.document.getElementById("name");
+       score.innerHTML = getUrlVars()["s"];
+       time.innerHTML = getUrlVars()["time"];
+       window.submit.addEventListener('touchend',submitScore);
+    };
+
+
+</script>
+<body>
+ <h2>You've Won!</h2>
+ <h3>Your score:</h3>
+ <div id="score"></div>
+ <h3>Your time:</h3>
+ <div id="time"></div>seconds <br>
+ <h3>Submit your score:</h3><br>
+ Name:<input id="name" type="text" style="height: 25px;font-size: 15px;" >
+ <button id="submitButton" class="button">Submit</button>
+</body>
+</html>

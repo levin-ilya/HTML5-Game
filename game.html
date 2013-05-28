@@ -1,0 +1,213 @@
+<!DOCTYPE html5>
+<html>
+<head>
+    <title></title>
+</head>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<style id="ballStyle">
+    .circle {
+        width: 100px;
+        height: 100px;
+        background: #fc2e5a;
+        -moz-border-radius: 50px;
+        -webkit-border-radius: 50px;
+        border-radius: 50px;
+        position: absolute;
+        left: 50px;
+        top: 79px;
+    }
+</style>
+<script src="http://remote-tilt.com/js/device-motion-polyfill.js"></script>
+<script>
+    function initBall(item){
+        var ball = item;
+        ball.obstacles = new Array();
+        ball.setTop = function(top){
+            if(top>=ball.maxTop && top<=ball.maxBottom){
+                ball.style.top = top + "px" ;
+            }
+        }
+        ball.getTop = function(){
+            var results =  parseFloat(ball.style.top)
+            if(isNaN(results)){
+                results =0;
+            }
+            return results;
+        }
+
+        ball.setLeft= function(left){
+            if(left>=ball.maxLeft && left<=ball.maxRight){
+                ball.style.left = left  +"px";
+            }
+        }
+
+        ball.getLeft = function(){
+            var results = parseInt(ball.style.left);
+            if(isNaN(results)){
+                results=0;
+            }
+
+            return results;
+        }
+
+        ball.moveLeft=function(rate){
+            ball.setLeft(ball.getLeft()+rate);
+        }
+
+        ball.moveTop = function(rate){
+            ball.setTop(ball.getTop()+rate);
+        }
+
+        ball.setMaxTop = function(maxTop){
+            ball.maxTop=maxTop;
+        }
+
+        ball.setMaxLeft = function(maxLeft){
+            ball.maxLeft=maxLeft;
+        }
+
+        ball.setMaxRight = function(maxRight){
+            ball.maxRight=maxRight;
+        }
+
+        ball.setMaxBottom = function(maxBottom){
+            ball.maxBottom = maxBottom;
+        }
+
+        ball.getDiameter= function (){
+            return parseInt(ball.getCircleStyleSheet().rules[0].style.width);
+        }
+
+        ball.getCircleStyleSheet = function (){
+            var totalSheets = document.styleSheets.length;
+            for(var i=0;i<=totalSheets;i++){
+                if(document.styleSheets[i].rules[0].selectorText == ".circle"){
+                    return document.styleSheets[i];
+                }
+            }
+
+        }
+
+
+
+
+        ball.setBoundaries= function(maxTop,maxLeft,maxBottom,maxRight){
+            ball.setMaxTop(maxTop);
+            ball.setMaxLeft(maxLeft);
+            ball.setMaxRight(maxRight);
+            ball.setMaxBottom(maxBottom);
+        }
+
+        ball.savePos = function (){
+            ball.savedTop = ball.getTop();
+            ball.savedLeft = ball.getLeft();
+        }
+
+        ball.rollBackPos = function  (){
+            ball.setTop(ball.savedTop);
+            ball.setLeft(ball.savedLeft);
+        }
+
+        ball.isNextPosOK = function (gamma,beta){
+            var results = true;
+            window.ball.savePos();
+            if(gamma>0){
+                ball.moveLeft(10);
+            }else if(gamma<0){
+                ball.moveLeft(-10);
+            }
+
+            if(beta>0){
+                ball.moveTop(10);
+            }else if(beta<0){
+                ball.moveTop(-10);
+            }
+            // TODO: problem with scope here...will fix later if there is time
+            for(var obstacle in window.ball.obstacles){
+                if(offLimits(window.ball,obstacle)){
+                    window.ball.rollBackPos();
+                    results = false;
+                }
+            }
+
+
+            return results;
+        }
+
+        ball.addObstacle = function(item){
+            ball.obstacles.push(item);
+        }
+
+        ball.getObstacles= function (){
+            ball.obstacles;
+        }
+      return ball;
+    }
+
+
+    function Wood(item){
+
+        return item;
+    }
+
+    function offLimits(ball,wood){
+       ball.topLeft = [ball.getLeft(),ball.getTop()];
+       ball.topRight = [ball.getLeft()+ball.getDiameter(),ball.getTop()];
+       ball.bottomLeft = [ball.getLeft(),ball.getTop()+ball.getDiameter()];
+       ball.bottomRight = [ball.getLeft()+ball.getDiameter(),ball.getTop()+ball.getDiameter()];
+
+       wood.topLeft = [wood.offsetLeft,wood.offsetTop];
+       wood.topRight = [wood.offsetLeft+wood.clientWidth,wood.offsetTop];
+       wood.bottomLeft = [wood.offsetLeft,wood.offsetTop+wood.clientHeight];
+       wood.bottomRight = [wood.offsetLeft+wood.clientWidth,wood.offsetTop+wood.clientHeight];
+
+       return isInBox(ball.topLeft,wood) ||  isInBox(ball.topRight,wood) || isInBox(ball.bottomLeft,wood) || isInBox(ball.bottomRight,wood);
+    }
+
+    function isInBox(point,obj){
+       var testX = (obj.bottomLeft[0] <= point[0]) && (point[0] <= obj.bottomRight[0]);
+       var testY = (obj.topLeft[1] <= point[1]) && (point[1] <= obj.bottomLeft[1]);
+       return (testX && testY)
+    }
+
+
+
+    window.onload = function(){
+        // init the game
+        window.ball = initBall(document.getElementById('ball'));
+        window.wood1 =  Wood(document.getElementById('wood1'));
+        window.wood2 =  Wood(document.getElementById('wood2'));
+        ball.setBoundaries(0,0,window.innerHeight-ball.getDiameter(),window.innerWidth-ball.getDiameter());
+
+        window.ball.addObstacle(window.wood1);
+        window.ball.addObstacle(window.wood2);
+
+//        console.log(isInBox([2,2],[1,2],[3,3],[1,1],[3,1]));
+//        console.log(isInBox([4,4],[1,2],[3,3],[1,1],[3,1]));
+//        console.log(isInBox([0,0],[1,2],[3,3],[1,1],[3,1]));
+
+
+        window.addEventListener("deviceorientation", function(event) {
+            document.getElementById('alpha').innerText = ball.style.left;
+            document.getElementById('beta').innerText = ball.style.top;
+            document.getElementById('gamma').innerText = window.innerHeight + " " + window.innerWidth;
+
+            if(ball.isNextPosOK(event.gamma,event.beta)){
+                ball.moveLeft(event.gamma);
+                ball.moveTop(event.beta);
+            };
+
+        });
+
+    };
+   </script>
+<body>
+<div id="alpha">0</div>
+<div id="beta">0</div>
+<div id="gamma">0</div>
+<div class="wood" id="wood1" style="width: 5%;height: 30%;background-color:darkred;position: absolute;left: 50%;top: 0px"></div>
+<div class="wood" id="wood2" style="width: 5%;height: 30%;background-color:darkred;position: absolute;left: 50%;bottom: 0px"></div>
+<div class="circle" id="ball"></div>
+
+</body>
+</html>

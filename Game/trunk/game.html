@@ -1,0 +1,453 @@
+<!DOCTYPE html5>
+<html>
+<head>
+    <title>The Game</title>
+</head>
+<link rel="stylesheet" type="text/css" href="assets/button.css">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="blue">
+<link rel="apple-touch-icon" href="/assets/ball.png">
+<link rel="apple-touch-startup-image" href="/assets/ball.png">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<style id="ballStyle">
+    .circle {
+        width: 50px;
+        height: 50px;
+        background-image: url("assets/ball.png");
+        -moz-border-radius: 25px;
+        -webkit-border-radius: 25px;
+        border-radius: 25px;
+        position: absolute;
+    }
+
+    .gold{
+        background-image: url("assets/goldCoin.png");
+    }
+
+    .score{
+        text-decoration-color: #000064;
+        position: absolute;
+        right: 5px;
+        top: 5px;
+        display: inline;
+        float: left;
+    }
+
+    .scoreValue{
+        float: left;
+        display: inline;
+    }
+</style>
+<!--<script src="http://remote-tilt.com/js/device-motion-polyfill.js"></script>-->
+<script>
+    function Ball(radius,startLeft,startTop){
+        var attributes = {"style":"width:"+(radius*2)+"px;height:"+(radius*2)+"px;background-image: url('assets/ball.png');-moz-border-radius:"+radius+"px;-webkit-border-radius:"+radius+"px;border-radius:"+radius+"px;position: absolute;"};
+        var ball = setupElementTag("div",attributes);
+        ball.rate = 1;
+        ball.obstacles = new Array();
+       // ball.leftOffset = startLeft;
+       // ball.topOffset = startTop;
+        ball.type = "ball";
+        ball.setTop = function(top){
+            if(top>=ball.maxTop && top<=ball.maxBottom){
+                ball.style.top = top + "px" ;
+            }
+        }
+        ball.getTop = function(){
+            var results =  parseFloat(ball.style.top)
+            if(isNaN(results)){
+                results =0;
+            }
+            return results;
+        }
+
+        ball.setLeft= function(left){
+            if(left>=ball.maxLeft && left<=ball.maxRight){
+                ball.style.left = left  +"px";
+            }
+        }
+
+        ball.getLeft = function(){
+            var results = parseInt(ball.style.left);
+            if(isNaN(results)){
+                results=0;
+            }
+
+            return results;
+        }
+
+        ball.moveLeft=function(rate){
+            ball.setLeft(ball.getLeft()+rate);
+        }
+
+        ball.moveTop = function(rate){
+            ball.setTop(ball.getTop()+rate);
+        }
+
+        ball.setMaxTop = function(maxTop){
+            ball.maxTop=maxTop;
+        }
+
+        ball.setMaxLeft = function(maxLeft){
+            ball.maxLeft=maxLeft;
+        }
+
+        ball.setMaxRight = function(maxRight){
+            ball.maxRight=maxRight;
+        }
+
+        ball.setMaxBottom = function(maxBottom){
+            ball.maxBottom = maxBottom;
+        }
+
+        ball.getDiameter= function (){
+            return parseInt(ball.getCircleStyleSheet().rules[0].style.width);
+        }
+
+        ball.getCircleStyleSheet = function (){
+            var totalSheets = document.styleSheets.length;
+            for(var i=0;i<=totalSheets;i++){
+                if(document.styleSheets[i].rules[0].selectorText == ".circle"){
+                    return document.styleSheets[i];
+                }
+            }
+
+        }
+
+
+
+
+        ball.setBoundaries= function(maxTop,maxLeft,maxBottom,maxRight){
+            ball.setMaxTop(maxTop);
+            ball.setMaxLeft(maxLeft);
+            ball.setMaxRight(maxRight);
+            ball.setMaxBottom(maxBottom);
+        }
+
+        ball.moveBall = function(left,top){
+            var oldLeft =  this.getLeft();
+            var oldTop = this.getTop();
+            var newLeft = (left+ball.getRecalibrateLeftOffSet())*ball.rate;
+            var newTop = (top+ball.getRecalibrateTopOffSet())*ball.rate;
+            this.moveLeft(newLeft);
+            this.moveTop(newTop);
+             for(var index=0;index<window.game.noGoArea.length;index++){
+                 var obj = window.game.noGoArea[index];
+                 if(isHit(this,obj).hitResults){
+                     this.setLeft(oldLeft);
+                     this.setTop(oldTop);
+                 }
+             }
+        };
+
+
+        ball.setRate = function(rate){
+            ball.rate = rate;
+        }
+
+        ball.getRate = function(){
+            return ball.rate;
+        }
+
+        ball.setRecalibrateLeftOffSet = function(leftOffset){
+            ball.leftOffsetRecalibrate = leftOffset;
+        }
+
+        ball.setRecalibrateTopOffset = function(topOffset){
+            ball.topOffsetRecalibrate = topOffset;
+        }
+
+        ball.getRecalibrateLeftOffSet = function (){
+            return  ball.leftOffsetRecalibrate;
+        }
+
+        ball.getRecalibrateTopOffSet = function (){
+            return ball.topOffsetRecalibrate;
+        }
+
+        ball.setBoundaries(0,0,window.innerHeight-ball.getDiameter()-window.bottomMenu.offsetHeight,window.innerWidth-ball.getDiameter());
+        ball.setTop(startTop);
+        ball.setLeft(startLeft);
+        ball.setRecalibrateLeftOffSet(0);
+        ball.setRecalibrateTopOffset(0);
+        return ball;
+    };
+
+
+    function Wood(width,height,left,top){
+        var attributes = {"style":"z-index:-1;width:" + width + "%;height: " +height+"%;background-color:darkred;position: absolute;left:"+left+"%;top:"+top+"%"};
+        var html = setupElementTag("div",attributes);
+        html.fireHitEvent = function(ball,results){
+            console.log("Wood Hit");
+        };
+        html.topLeft = [html.offsetLeft,html.offsetTop];
+        html.topRight = [html.offsetLeft+html.clientWidth,html.offsetTop];
+        html.bottomLeft = [html.offsetLeft,html.offsetTop+html.clientHeight];
+        html.bottomRight = [html.offsetLeft+width,html.offsetTop+height];
+        html.type = "wood";
+        return html;
+    };
+
+    function GoldCoin(left,top){
+        // <img id="goldCoin" src="assets/goldCoin.png" style="position: absolute;left: 70%;bottom: 40px">
+        var attributes = {"src":"assets/goldCoin.png","style":"position: absolute;left:"+left+"%;top:"+top+"%"};
+        var html = setupElementTag("img",attributes);
+        html.type="goldCoin";
+        html.fireHitEvent = function(ball,results){
+           this.style.display = "none";
+           ball.setRate(.5);
+           // hide all the walls
+           for(var i=0;i<window.game.noGoArea.length;i++){
+               window.game.noGoArea[i].style.display = "none";
+           }
+           // clear the NO GO areas.
+            window.game.noGoArea = new Array();
+           score.addScore(50);
+           console.log("Gold Coin Hit");
+       };
+       return html;
+    }
+
+    function setupElementTag(element,attributes){
+        var html = document.createElement(element);
+        for(var key in attributes){
+            if (attributes.hasOwnProperty(key)) {
+                html.setAttribute(key,attributes[key]);
+            }
+        }
+        return html;
+    }
+
+    function Goal(left,top){
+        var attributes = {"src":"assets/spiral.gif","style":"position: absolute;left:"+left+"%;top:"+top+"%"};
+        var html = setupElementTag("img",attributes);
+        html.type="goal";
+
+        html.fireHitEvent = function(ball,results){
+         // if(typeof(window.endGameTime) == '0'){
+
+
+              window.endGameTime = Math.round(new Date().getTime() / 1000);
+              window.totalTime = window.endGameTime - window.startGameTime;
+              //alert("You've won! Click ok to submit your score.");
+              if(window.currentLevel==2){
+                  ball.setRate(0);
+                  document.getElementsByTagName("body")[0].innerHTML = "<div style='width: 100%;height: 100%;margin:0 auto;'><h1>Winner!!!</h1><br><h3>Please wait for results!</h3></div> "
+                  window.location = "scores.html?time=" + window.totalTime + "&s=" + score.getScore();
+              }else{
+                  score.addScore(50);
+                  ball.setLeft(50)
+                  setUpLevel(window.currentLevel+1);
+              }
+        //  }
+
+      };
+
+      return html;
+    }
+
+    function Score(item){
+        item.getScore = function(){
+            return parseInt(item.innerHTML);
+        };
+        item.setScore = function (newScore){ item.innerHTML = newScore};
+        item.addScore = function (addScore){ item.setScore(item.getScore()+addScore)};
+        return item;
+    }
+
+    function isHit(ball,object){
+       function results (){
+          this.hitResults = false;
+          this.topLeft = false;
+          this.topRight = false;
+          this.bottomLeft = false;
+          this.bottomRight = false;
+       }
+       var resultsObj = new results();
+
+       ball.topLeft = [ball.getLeft(),ball.getTop()];
+       ball.topRight = [ball.getLeft()+ball.getDiameter(),ball.getTop()];
+       ball.bottomLeft = [ball.getLeft(),ball.getTop()+ball.getDiameter()];
+       ball.bottomRight = [ball.getLeft()+ball.getDiameter(),ball.getTop()+ball.getDiameter()];
+
+       object.topLeft = [object.offsetLeft,object.offsetTop];
+       object.topRight = [object.offsetLeft+object.clientWidth,object.offsetTop];
+       object.bottomLeft = [object.offsetLeft,object.offsetTop+object.clientHeight];
+       object.bottomRight = [object.offsetLeft+object.clientWidth,object.offsetTop+object.clientHeight];
+
+       resultsObj.topLeft =  isInBox(ball.topLeft,object);
+       resultsObj.topRight =  isInBox(ball.topRight,object);
+       resultsObj.bottomLeft = isInBox(ball.bottomLeft,object);
+       resultsObj.bottomRight =  isInBox(ball.bottomRight,object);
+       resultsObj.hitResults =   resultsObj.topLeft ||  resultsObj.topRight || resultsObj.bottomLeft || resultsObj.bottomRight ;;
+       return resultsObj;
+    }
+
+    function isInBox(point,obj){
+       var testX = (obj.bottomLeft[0] <= point[0]) && (point[0] <= obj.bottomRight[0]);
+       var testY = (obj.topLeft[1] <= point[1]) && (point[1] <= obj.bottomLeft[1]);
+       return (testX && testY)
+    }
+
+    function pauseResumeGame(){
+       window.buttonAudio.play();
+       if(window.game.status=="playing"){
+           window.game.status = "pausing"
+           window.pauseResumeButton.innerText = "Resume";
+           for(var i=0;i<window.game.balls.length;i++){
+                   window.game.balls[i].setRate(0);
+           }
+           window.game.status = "paused";
+
+       }else if(window.game.status=="paused"){
+           window.game.status = "resuming";
+           window.game.isPaused = false;
+           window.pauseResumeButton.innerText = "Pause";
+           recalibrate();
+           for(var i=0;i<window.game.balls.length;i++){
+               window.game.balls[i].setRate(1);
+           }
+           window.game.status = "playing";
+        }
+    }
+
+    function recalibrate(){
+         window.buttonAudio.play();
+        for(var i=0;i<window.game.balls.length;i++){
+            window.game.balls[i].setRecalibrateLeftOffSet((window.gamma*-1));
+            window.game.balls[i].setRecalibrateTopOffset((window.beta*-1));
+        }
+
+    }
+
+    function setUpLevel(levelValue){
+        window.currentLevel=levelValue;
+        document.getElementById("levelValue").innerText=levelValue;
+
+        // clear all balls
+        for(var i=0;i<window.game.balls.length;i++){
+            window.game.balls[i].style.display = "none";
+
+        }
+        window.game.balls = new Array();
+
+        // hide all the walls
+        for(var i=0;i<window.game.noGoArea.length;i++){
+            window.game.noGoArea[i].style.display = "none";
+        }
+        // clear the NO GO areas.
+        window.game.noGoArea = new Array();
+
+        // clear all obstacles
+        for(var i=0;i<window.game.obstacles.length;i++){
+            window.game.obstacles[i].style.display="none";
+        }
+        window.game.obstacles = new Array();
+
+        // get the level objects
+        var levelObjs = window.levels[levelValue-1];
+        for(var i=0;i<levelObjs.length;i++){
+            if(levelObjs[i].type=="wood"){
+                window.game.addNoGoArea(levelObjs[i]);
+            }else if(levelObjs[i].type=="ball"){
+                window.game.addBall(levelObjs[i]);
+            }else{
+                window.game.addObstacle(levelObjs[i]);
+            }
+        }
+
+
+    }
+
+    function Game(){
+        this.obstacles = new Array();
+        this.noGoArea = new Array();
+        this.balls = new Array();
+        this.status = "playing";
+        this.addObstacle = function(item){
+            document.getElementsByTagName("body")[0].appendChild(item);
+            this.obstacles.push(item);
+        };
+        this.addNoGoArea = function(item){
+            document.getElementsByTagName("body")[0].appendChild(item);
+            this.noGoArea.push(item);
+        };
+
+        this.addBall = function(item){
+            document.getElementsByTagName("body")[0].appendChild(item);
+            this.balls.push(item);
+        };
+        this.checkForHitEvent = function(){
+            for(var ballIndex=0;ballIndex<this.balls.length;ballIndex++){
+                for(var obstaclesIndex=0; obstaclesIndex<this.obstacles.length;obstaclesIndex++){
+                    var checkHitResult = isHit(this.balls[ballIndex],this.obstacles[obstaclesIndex]);
+                    if(checkHitResult.hitResults){
+                        this.obstacles[obstaclesIndex].fireHitEvent(this.balls[ballIndex],checkHitResult);
+                    }
+                }
+            }
+
+        }
+    }
+
+
+    window.onload = function(){
+        // init the game
+        window.game = new Game();
+        window.levels = [[Ball(25,0,0),Ball(25,100,50),Wood(10,60,50,37),Wood(10,10,50,0),GoldCoin(55,25),Goal(70,50)],[Ball(25,0,0),Ball(25,0,20),Wood(10,40,30,60),Wood(10,95,60,0),GoldCoin(42,75),Goal(80,50)]];
+        window.currentLevel = 1;
+        setUpLevel(window.currentLevel);
+        window.score = Score(document.getElementById("scoreValue"));
+        window.bottomMenu = document.getElementById("bottomMenu");
+        window.pauseResumeButton  =document.getElementById("pauseResumeButton");
+        window.recalibrateButton = document.getElementById("recalibrateButton");
+        window.alpha = 0;
+        window.buttonAudio = document.getElementById("audioButton");
+        window.startGameTime = Math.round(new Date().getTime() / 1000);
+
+
+//        console.log(isInBox([2,2],[1,2],[3,3],[1,1],[3,1]));
+//        console.log(isInBox([4,4],[1,2],[3,3],[1,1],[3,1]));
+//        console.log(isInBox([0,0],[1,2],[3,3],[1,1],[3,1]));
+
+        window.pauseResumeButton.addEventListener('touchend',pauseResumeGame);
+        window.recalibrateButton.addEventListener('touchend',recalibrate);
+        window.addEventListener("deviceorientation", function(event) {
+            window.alpha = event.alpha;
+            window.beta = event.beta;
+            window.gamma = event.gamma;
+            document.getElementById('alpha').innerText = event.alpha;
+            document.getElementById('beta').innerText = event.beta;
+            document.getElementById('gamma').innerText = event.gamma;
+
+            window.game.checkForHitEvent();
+            for(var i=0;i<window.game.balls.length;i++){
+                window.game.balls[i].moveBall(event.gamma,event.beta);
+            };
+        });
+
+    };
+   </script>
+<body>
+<div id="levelLabel" class="level">Level <br>
+    <div id="levelValue" style="float: left;"></div>
+</div>
+
+<div id="score" class="score">Score
+    <div id="scoreValue" style="float: left;">0</div>
+</div>
+
+<div id="alpha">0</div>
+<div id="beta">0</div>
+<div id="gamma">0</div>
+<!--<div class="circle" id="ball"></div>-->
+<div class="bottomMenu" id="bottomMenu" style="display: block;position: absolute;bottom: 0px;left:0px;background-color: aqua;width: 100%;text-align:center;">
+    <button class="button" id="pauseResumeButton" onclick="pauseResumeGame();">Pause</button>
+    <button class="button" id="recalibrateButton" onclick="recalibrate();">Recalibrate</button>
+</div>
+<audio id="audioButton">
+    <source src="assets/button.wav" type="audio/wav">
+    Your browser does not support the audio element.
+</audio>
+</body>
+</html>
